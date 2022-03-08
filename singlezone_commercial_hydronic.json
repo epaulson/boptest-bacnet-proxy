@@ -1,0 +1,90 @@
+{
+    "inputs" : {   
+        "oveTZonSet_activate": {   
+            "Description": "Activation for Zone temperature set point for heating",
+            "Maximum": null,
+            "Minimum": null,
+            "BACpypesUnit": null,
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesInstanceID": 1
+        },
+        "oveTZonSet_u": {   
+            "Description": "Zone temperature set point for heating",
+            "Maximum": 303.15,
+            "Minimum": 283.15,
+            "BACpypesUnit": "degreesKelvin",
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesInstanceID": 2
+        },
+        "oveTSupSet_u": {
+            "BACpypesUnit": "degreesKelvin",
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesInstanceID": 11
+        },
+        "oveTSupSet_activate": {
+            "BACpypesUnit": null,
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesInstanceID": 12
+        },
+        "ahu_oveFanSup_u": {
+            "BACpypesUnit": null,
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesInstanceID": 13
+        },
+        "ahu_oveFanSup_activate": {
+            "BACpypesUnit": null,
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesInstanceID": 14
+        }
+    },
+    "measurements" : {
+        "ahu_reaTSupAir_y": { 
+            "Description": "AHU supply air temperature",
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesUnit": "degreesKelvin",
+            "BACpypesInstanceID": 3
+        },
+        "reaTZon_y": { 
+            "Description": "Zone air temperature",
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesUnit": "degreesKelvin",
+            "BACpypesInstanceID": 4
+        },
+        "ahu_reaTRetAir_y": {
+            "Description": "AHU return air temperature",
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesUnit": "degreesKelvin",
+            "BACpypesInstanceID": 5
+        },
+        "reaCO2Zon_y": {
+            "Description": "Zone CO2 concentration",
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesUnit": "partsPerMillion",
+            "BACpypesInstanceID": 6
+        },
+        "reaPEle_y": {
+            "Description": "Electrical power consumpution for AHU fans and heating system pump",
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesUnit": "watts",
+            "BACpypesInstanceID": 7
+        },
+        "ahu_reaPFanSup_y": {
+            "Description": "AHU supply fan electrical power consumption",
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesUnit": "watts",
+            "BACpypesInstanceID": 8
+        },
+        "reaPPum_y": {
+            "Description": "Electical Power consumption of pump",
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesUnit": "watts",
+            "BACpypesInstanceID": 9
+        },
+        "ahu_reaPFanRet": {
+            "Description": "AHU return fan electrical consumption",
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesUnit": "watts",
+            "BACpypesInstanceID": 10
+        }                  
+    }
+}
