@@ -85,6 +85,18 @@
             "BACpypesType": "LocalAnalogValueObject",
             "BACpypesUnit": "watts",
             "BACpypesInstanceID": 10
-        }                  
+        }, 
+        "reaQHea_y": {
+            "Description": "District heating thermal power consumption",
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesUnit": "watts",
+            "BACpypesInstanceID": 15
+        },
+        "ahu_reaFloSupAir_y": {
+            "Description": "AHU supply air mass flowrate",
+            "BACpypesType": "LocalAnalogValueObject",
+            "BACpypesUnit": "kilogramsPerSecond",
+            "BACpypesInstanceID": 16
+        }        
     }
 }
