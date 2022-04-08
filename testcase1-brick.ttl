@@ -3,6 +3,7 @@
 @prefix bacnet: <http://data.ashrae.org/bacnet/2020#> .
 @prefix unit: <http://qudt.org/vocab/unit/> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix ref: <https://brickschema.org/schema/Brick/ref#> .
 
 <urn:example#> a owl:Ontology ;
     owl:imports <https://brickschema.org/schema/1.2/Brick#> .
@@ -22,8 +23,9 @@ bldg:roomheater a brick:Space_Heater ;
 
 # We probably will want this to be changed to an binaryinput object
 bldg:heater_activate_command a brick:Run_Enable_Command ;
-    brick:BACnetRepresentation [
+    ref:hasExternalReference [
         bacnet:object-identifier "analog-value,1" ;
+        bacnet:object-type "analog-value" ;
         bacnet:object-name "oveAct_activate" ;
         bacnet:objectOf bldg:boptest-proxy-device ;
     ] .
@@ -35,8 +37,9 @@ bldg:heater_activate_command a brick:Run_Enable_Command ;
 # is not meant to be a complete model anyway so not getting too pedantic 
 bldg:heater_power_setting a brick:Heating_Demand_Setpoint ;
     brick:hasUnit unit:W ;
-    brick:BACnetRepresentation [
+    ref:hasExternalReference [
         bacnet:object-identifier "analog-value,2" ;
+        bacnet:object-type "analog-value" ;
         bacnet:object-name "oveAct_u" ;
         bacnet:objectOf bldg:boptest-proxy-device ;
     ] .
@@ -44,26 +47,29 @@ bldg:heater_power_setting a brick:Heating_Demand_Setpoint ;
 bldg:co2_sensor1 a brick:CO2_Level_Sensor ;
     brick:hasUnit unit:PPM ;
     brick:isPointOf bldg:testcase1_thermalzone ;
-    brick:BACnetRepresentation [
+    ref:hasExternalReference [
         bacnet:object-identifier "analog-value,3" ;
         bacnet:object-name "CO2RoomAir_y" ;
+        bacnet:object-type "analog-value" ;
         bacnet:objectOf bldg:boptest-proxy-device ;
     ] .
 
 # I'm not sure that this is right either
 bldg:heater_power_sensor1 a brick:Electrical_Power_Sensor ;
     brick:hasUnit unit:W ;
-    brick:BACnetRepresentation [
+    ref:hasExternalReference [
         bacnet:object-identifier "analog-value,4" ;
         bacnet:object-name "PHea_y" ;
+        bacnet:object-type "analog-value" ;
         bacnet:objectOf bldg:boptest-proxy-device ;
     ] .
 
 bldg:zone_temperature_sensor1 a brick:Zone_Air_Temperature_Sensor ;
     brick:hasUnit unit:K ;
     brick:isPointOf bldg:testcase1_thermalzone ;
-    brick:BACnetRepresentation [
+    ref:hasExternalReference [
         bacnet:object-identifier "analog-value,700" ;
         bacnet:object-name "TRooAir_y" ;
+        bacnet-object-type "analog-value" ;
         bacnet:objectOf bldg:boptest-proxy-device ;
     ] .

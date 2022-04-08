@@ -100,6 +100,8 @@ def create_objects(app, configfile):
         create_objects._debug("create_objects %r", app)
     global objects, inputs
 
+    #TODO
+    # g.query("select ?name ?bacnetRef where {?bo a ref:BACnetReference . ?bo bacnet:object-identifier ?bacnetRef . ?bo bacnet:object-name ?name }")
     params = None
     with open(configfile, 'r') as f:
         boptestpoints = json.load(f)
