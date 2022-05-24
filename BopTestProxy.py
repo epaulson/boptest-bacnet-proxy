@@ -24,6 +24,7 @@ import os
 import requests
 import time
 import json
+import rdflib
 
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 from bacpypes.consolelogging import ConfigArgumentParser
@@ -39,7 +40,7 @@ from bacpypes.app import BIPSimpleApplication
 from bacpypes.service.device import DeviceCommunicationControlServices
 from bacpypes.service.object import ReadWritePropertyMultipleServices
 from bacpypes.local.device import LocalDeviceObject
-from bacpypes.local.object import AnalogValueCmdObject, Commandable
+from bacpypes.local.object import AnalogValueCmdObject, Commandable, AnalogOutputCmdObject
 from bacpypes.object import register_object_type, AnalogInputObject
 
 # some debugging
@@ -53,7 +54,14 @@ APPINTERVAL = 5 * 1000 # 5 seconds
 objects = {}
 inputs = {}
 nextState = None
+g = None
 
+klassMapping = {'analog-value': AnalogValueCmdObject, 'analog-input': AnalogInputObject, 'analog-output': AnalogOutputCmdObject}
+unitMapping = {'http://qudt.org/vocab/unit/K': "degreesKelvin", 'http://qudt.org/vocab/unit/PPM': "partsPerMillion"}
+
+baseurl = "http://localhost:5000"
+boptest_measurements = None
+boptest_inputs = None
 
 # TODO - what should some of the BOPTEST objects be - maybe
 # AnalogInputs or BinaryInputs?
@@ -98,37 +106,42 @@ def create_objects(app, configfile):
     """Create the objects that hold the result values."""
     if _debug:
         create_objects._debug("create_objects %r", app)
-    global objects, inputs
+    global objects, inputs, g
 
-    #TODO
-    # g.query("select ?name ?bacnetRef where {?bo a ref:BACnetReference . ?bo bacnet:object-identifier ?bacnetRef . ?bo bacnet:object-name ?name }")
-    params = None
-    with open(configfile, 'r') as f:
-        boptestpoints = json.load(f)
-
-    for x in ['inputs', 'measurements']:
-        for k,v in boptestpoints[x].items():
-            if _debug:
-                create_objects._debug("    - name: %r", k)
-            units = v['BACpypesUnit']
-            klass = globals()[v['BACpypesType']]
-            instance = v['BACpypesInstanceID']
-            name = k
-
-            obj = klass(objectName = name, objectIdentifier=(klass.objectType, instance), relinquishDefault = 0.0)
-            if _debug:
-                create_objects._debug("    - obj: %r", obj)
-
-            if units is not None:
-                obj.units = units
+    g= rdflib.Graph()
+    g.parse(configfile)
+    points = g.query("select ?point ?name ?bacnetRef ?unit where {?point ref:hasExternalReference ?bo . ?bo bacnet:object-identifier ?bacnetRef . ?bo bacnet:object-name ?name OPTIONAL {?point brick:hasUnit ?unit} }")
+    for point in points:
+        rdfBacnetName = point[1]
+        rdfBacnetRef = point[2]
+        rdfBacnetUnit = point[3]
+        if _debug:
+            create_objects._debug("    - name: %r", point[1])
+        klassName, instanceNum = rdfBacnetRef.split(",", 2)
+        print(klassName + " " + instanceNum)
+        klass = klassMapping[klassName]
+        instanceNum = int(instanceNum)
+        name = str(rdfBacnetName)
+        units = None
+        if rdfBacnetUnit:
+            units = unitMapping[str(rdfBacnetUnit)]
         
-            # add it to the application
-            app.add_object(obj)
+        if klassName == 'analog-input':
+            obj = klass(objectName = name, objectIdentifier=(klass.objectType, instanceNum), presentValue=0.0)
+        else:
+            obj = klass(objectName = name, objectIdentifier=(klass.objectType, instanceNum), relinquishDefault = 0.0)
+        if _debug:
+            create_objects._debug("    - obj: %r", obj)
 
-            # keep track of the object by name
-            objects[k] = obj
-            if x == 'inputs':
-                inputs[k] = obj
+        if units is not None:
+            obj.units = units
+
+        # add it to the application
+        app.add_object(obj)
+        # keep track of the object by name
+        objects[name] = obj
+        if name in boptest_inputs:
+            inputs[name] = obj
 
 
 @recurring_function(APPINTERVAL)
@@ -176,12 +189,13 @@ def update_boptest_data():
     # because if say the call to /advance takes 3 seconds, we want to get called again in 2 seconds, not in 5 seconds. 
     global nextState
     if nextState:
-      for k, v in nextState.items():
-          if _debug:
-              update_boptest_data._debug("    - k, v: %r, %r", k, v)
-
-          if k in objects:
-              objects[k]._set_value(v)
+        for k, v in nextState.items():
+            if _debug:
+                update_boptest_data._debug("    - k, v: %r, %r", k, v)
+                
+            if k in objects:
+                #objects[k]._set_value(v)
+                objects[k].presentValue = v
 
     nextState = json_response
 
@@ -196,15 +210,14 @@ class ReadPropertyMultipleApplication(
 
 @bacpypes_debugging
 def main():
-    global vendor_id
+    global vendor_id, g
 
     parser = ConfigArgumentParser(description=__doc__)
 
-    parser.add_argument('boptest_config', type=str, help='JSON file with mappings from BOPTest to BACnet')
+    parser.add_argument('brick_model', type=str, help='Brick model that defines the site, a ttl file')
     # parse the command line arguments
     args = parser.parse_args()
     
-
     if _debug:
         _log.debug("initialization")
     if _debug:
@@ -215,13 +228,16 @@ def main():
     # TODO: Take a commandline option for warmup period - e.g. let the simulation settle in respoonse to
     # outside air temps etc before starting
     global nextState
-    url = "http://localhost:5000" 
-    res = requests.put('{0}/initialize'.format(url), data={'start_time':0, 'warmup_period':0} ).json()
+    res = requests.put('{0}/initialize'.format(baseurl), data={'start_time':0, 'warmup_period':0} ).json()
     nextState = res
+
+    global boptest_measurements, boptest_inputs
+    boptest_measurements = requests.get(baseurl + "/measurements").json()
+    boptest_inputs = requests.get(baseurl+"/inputs").json()
 
     # We advance the simulation by 5 seconds at each call to /advance, and APPINTERVAL is also 5 seconds, so the simulationo
     # moves in sync with wallclock time. To see things happen faster, set this time greater than 5 seconds
-    res = requests.put('{0}/step'.format(url), data={'step':5})
+    res = requests.put('{0}/step'.format(baseurl), data={'step':5})
 
     # make a device object
     this_device = LocalDeviceObject(ini=args.ini)
@@ -232,7 +248,7 @@ def main():
     this_application = ReadPropertyMultipleApplication(this_device, args.ini.address)
 
     # create the objects and add them to the application
-    create_objects(this_application, args.boptest_config)
+    create_objects(this_application, args.brick_model)
     
     # run this update when the stack is ready
     deferred(update_boptest_data)

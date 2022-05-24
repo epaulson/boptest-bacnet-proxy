@@ -70,6 +70,6 @@ bldg:zone_temperature_sensor1 a brick:Zone_Air_Temperature_Sensor ;
     ref:hasExternalReference [
         bacnet:object-identifier "analog-value,700" ;
         bacnet:object-name "TRooAir_y" ;
-        bacnet-object-type "analog-value" ;
+        bacnet:object-type "analog-value" ;
         bacnet:objectOf bldg:boptest-proxy-device ;
     ] .

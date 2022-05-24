@@ -38,15 +38,23 @@ python BopTestProxy.py testcase1.json
 (remember that ObjectIdentifer property in BACnet must be unique across your entire BACnet installation, so you may need to change the 599 to something else, consult your local BACnet administrator)
 
 Finally, on another machine, use the BACnet client of your choice to observe the state of the simulation throough BACnet and optionally overwrite some control point values to influence the simulation.
+
+**IMPORTANT NOTE** Writing to the simulation is temporarily not working. 
+You can write to objects via BACnet and they will be passed into BOPTEST, but BOPTEST needs overwritten values to be paired with a corresponding `_activate` signal. 
+Earlier versions of this code directly exposed the _activate signals as BACnet objects but we are removing that and will just automatically pair the _activate signal with the appropriate BACnet object in BOPTEST, which is a more natural scenario to BACnet users. 
+
 Remember that BACnet uses UDP and port 47808 ('BAC0' in hex) so you may need to adjust your firewall rules on both machines.
 
-## Configuration
-At the moment, we are creating JSON files to do the mapping between BACnet and BOPTEST, one for each test case, though they are very simple. In the future, we may drop the JSON files and get the mapping information right from BOPTEST using the `/inputs` and `/measurements` endpoints. 
-The reason we do not currently do so is to be sure we have stable BACnet object instance IDs.
-
-## Brick Models
-We are working on creating a [Brick model](https://brickschema.org/) for each of the test cases.
+## Configuration and Brick Models
+The Proxy looks in a [Brick model](https://brickschema.org/) for the test case.
 The Brick models include the BACnet references necessary for Brick+BACnet-enabled software to interact with the BOPTEST simulation, through the proxy.
+The proxy queries for everything with a BACnet reference and creates a BACnet object for each of them, using the BACnet object type specified in the model.
+The proxy then looks at the `/measurements` and `/inputs` endpoint of BOPTEST to decide which of the BACnet objects it could potentially update and which are read-only measurements. 
+
+In the future, we might be able to pull all of the necessary metadata from BOPTEST directly. 
+At the moment, we for sure want to keep an external Brick model file so we have stable BACnet object instance IDs.
+
+None of the models included in this repo are very complete just yet and are very much a work in progress.
 
 ## License
 The `BopTestProxy.py` is a slightly modified version of the OpenWeatherServer.py sample from the BACpypes package, which was written by Joel Bender and was made available under the MIT License. 
