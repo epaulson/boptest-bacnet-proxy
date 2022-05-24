@@ -56,9 +56,6 @@ inputs = {}
 nextState = None
 g = None
 
-klassMapping = {'analog-value': AnalogValueCmdObject, 'analog-input': AnalogInputObject, 'analog-output': AnalogOutputCmdObject}
-unitMapping = {'http://qudt.org/vocab/unit/K': "degreesKelvin", 'http://qudt.org/vocab/unit/PPM': "partsPerMillion"}
-
 baseurl = "http://localhost:5000"
 boptest_measurements = None
 boptest_inputs = None
@@ -90,13 +87,9 @@ class LocalAnalogValueObject(AnalogValueCmdObject):
         # numeric values are easy to set
         self.presentValue = value
 
+klassMapping = {'analog-value': LocalAnalogValueObject, 'analog-input': AnalogInputObject, 'analog-output': AnalogOutputCmdObject}
+unitMapping = {'http://qudt.org/vocab/unit/K': "degreesKelvin", 'http://qudt.org/vocab/unit/PPM': "partsPerMillion"}
 
-
-# TODO: Rather than a JSON file, look at the BOPTEST /inputs and /measurements
-# endpoints to create BACnet objects for the running testcase. But, we need an instance number
-# and want some control over that, because we want to use that number in the Brick model too
-# TODO: Don't create all of these as the same BACnet object type, some should be
-# AIs or BIs, or maybe AO/BOs
 # TODO: BOPTEST has _activate input points that pair with other settings, but 
 # this proxy could combine those into single BACnet point that if written to 
 # with a higher priority, would override the default BOPTEST setting?
@@ -192,7 +185,7 @@ def update_boptest_data():
         for k, v in nextState.items():
             if _debug:
                 update_boptest_data._debug("    - k, v: %r, %r", k, v)
-                
+
             if k in objects:
                 #objects[k]._set_value(v)
                 objects[k].presentValue = v
