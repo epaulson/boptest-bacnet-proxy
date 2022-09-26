@@ -7,9 +7,9 @@ This sample application uses BOPTEST framework to create a virtual building
 and make it available over BACnet. To run it, follow the install instructions
 from https://github.com/ibpsa/project1-boptest and run it with testcase1,
 ala 
-TESTCASE=testcase1 docker compose up
+TESTCASE=multizone_office_simple_air docker compose up
 
-Then, in another terminal, run python BopTestProxy.py testcase1.json
+Then, in another terminal, run python BopTestProxy.py simple.ttl
 
 Finally, on another machine, use the BACnet client of your choice to
 observe the state of the simulation throough BACnet and optionally 
@@ -53,6 +53,7 @@ APPINTERVAL = 5 * 1000 # 5 seconds
 # dictionary of names to objects
 objects = {}
 inputs = {}
+activation_signal = {}
 nextState = None
 g = None
 
@@ -90,16 +91,13 @@ class LocalAnalogValueObject(AnalogValueCmdObject):
 klassMapping = {'analog-value': LocalAnalogValueObject, 'analog-input': AnalogInputObject, 'analog-output': AnalogOutputCmdObject}
 unitMapping = {'http://qudt.org/vocab/unit/K': "degreesKelvin", 'http://qudt.org/vocab/unit/PPM': "partsPerMillion"}
 
-# TODO: BOPTEST has _activate input points that pair with other settings, but 
-# this proxy could combine those into single BACnet point that if written to 
-# with a higher priority, would override the default BOPTEST setting?
 
 @bacpypes_debugging
 def create_objects(app, configfile):
     """Create the objects that hold the result values."""
     if _debug:
         create_objects._debug("create_objects %r", app)
-    global objects, inputs, g
+    global objects, inputs, g, nextState
 
     g= rdflib.Graph()
     g.parse(configfile)
@@ -111,7 +109,6 @@ def create_objects(app, configfile):
         if _debug:
             create_objects._debug("    - name: %r", point[1])
         klassName, instanceNum = rdfBacnetRef.split(",", 2)
-        print(klassName + " " + instanceNum)
         klass = klassMapping[klassName]
         instanceNum = int(instanceNum)
         name = str(rdfBacnetName)
@@ -119,10 +116,15 @@ def create_objects(app, configfile):
         if rdfBacnetUnit:
             units = unitMapping[str(rdfBacnetUnit)]
         
-        if klassName == 'analog-input':
-            obj = klass(objectName = name, objectIdentifier=(klass.objectType, instanceNum), presentValue=0.0)
+        initialValue = None
+        if name in nextState:
+            initialValue = nextState[name]
         else:
-            obj = klass(objectName = name, objectIdentifier=(klass.objectType, instanceNum), relinquishDefault = 0.0)
+            initialValue = 0.0
+        if klassName == 'analog-input' or klassName == 'analog-value':
+            obj = klass(objectName = name, objectIdentifier=(klass.objectType, instanceNum), presentValue=initialValue)
+        else:
+            obj = klass(objectName = name, objectIdentifier=(klass.objectType, instanceNum), relinquishDefault = initialValue)
         if _debug:
             create_objects._debug("    - obj: %r", obj)
 
@@ -134,6 +136,9 @@ def create_objects(app, configfile):
         # keep track of the object by name
         objects[name] = obj
         if name in boptest_inputs:
+            activation_name = name[:-2] + "_activate"
+            # TODO: Check to make sure there actually is an activation signal!
+            activation_signal[name] = activation_name
             inputs[name] = obj
 
 
@@ -147,22 +152,42 @@ def update_boptest_data():
 
     # ask the web service
     # We get results direct from /advance now but you could ask the simulation for historic data
-    #response = requests.put(
+    # response = requests.put(
     #    "http://localhost:5000/results", data={'point_name':'TRooAir_y', 'start_time': timestep * 30, 'final_time': (timestep+1)*30}
     #)
 
-    # TODO: Is there a way to get the current priorty value a point is currently written at?
-    #       that way, we don't have to pass in the overwriteable signals if they match the BOPTest
-    #       presets. This is slightly complicated because BOPTest is "sticky" - once you overwrite the
-    #       the built-in it remembers that setting for future calls to /advance. Work around that here by just
-    #       always overwriting the inputs from whatever is in the BACnet registers
-    # TODO: should some of these signals combine into one BACnet object, e.g. in testcase1, if someone overwrites
-    #       oveAct_u, should the proxy automatically turn on oveAct_activate, without exposing oveAct_activate as
-    #       a BACnet point? We'd have to pair them somehow...
     signals = {}
-    for k,v in inputs.items():
-        signals[k] = v._highest_priority_value()
 
+    for signal_name, signal_activation in activation_signal.items():
+        signals[signal_activation] = 0.0
+    
+    # For "commandable" objects, BACnet maintains a priorityArray that can be written to from levels 1-16, which are
+    # used to replace the 'presentValue' of an object. So, for the points that are 'inputs' in BOPtest, we created those as
+    # commandable objects, so check to see if there is a higher priority value set for this object that is overwriting 
+    # what we should normally use - and if so, turn on the '_activate' signal for that point as well
+    #
+    # (BACpypes automatically turns a write to presentValue into a write to the priority array) - e.g. a client that 
+    # does this from a client: 
+    # python samples/ReadWriteProperty.py 
+    # > write 10.0.2.7 analogValue:63 presentValue 310
+    # 
+    # BACpypes-based servers will change that into a modification of priorityArray at priority 16 
+    #
+    # the _activate signals are sticky in BOPtest, so we turn them off by default and only turn them back on when
+    # there is a signal to overwrite. Because they are sticky we could just leave out any that were previously set to 0
+    # but by just setting them all to 0, we don't have to worry about tracking any state, at the expense of sending in a
+    # bunch of parameters to boptest that don't really do anything
+    #
+    for k,v in inputs.items():
+        #print("k: %s %s %s" % (str(k), v._highest_priority_value(), type(v._highest_priority_value()[1])))
+        signal = v._highest_priority_value()
+        if signal[1]:
+            signals[k] = signal[0]
+            activation_name = activation_signal[k]
+            signals[activation_name] = 1.0
+        
+
+    #print("Advancing with signals: " + str(signals))
     response = requests.post(
     #    "http://localhost:5000/advance", data={"oveAct_u": next_oveAct_u, "oveAct_activate": next_oveAct_activate}
         "http://localhost:5000/advance", data=signals
@@ -176,7 +201,10 @@ def update_boptest_data():
 
     # set the object values
     # We advance the simulation by 5 seconds at each call to the loop, but we don't update the external world
-    # with those results until the NEXT call to this function. 
+    # with those results until the NEXT call to this function.
+    # 
+    # TODO: don't ACK BACnet writes until we get to here - instead, buffer the write request and send the ACKs later
+    # don't worry about concurrency, last-writer-wins is fine, but be sure to send multiple acks, one to each writer
     #
     # TODO: rather than using recurring_function, we should schedule ourselves to be called again at (5secs-elapsed_function_time)
     # because if say the call to /advance takes 3 seconds, we want to get called again in 2 seconds, not in 5 seconds. 
@@ -208,6 +236,8 @@ def main():
     parser = ConfigArgumentParser(description=__doc__)
 
     parser.add_argument('brick_model', type=str, help='Brick model that defines the site, a ttl file')
+    parser.add_argument('start_time', type=int, default=0, help="timestamp (in seconds) at which to start the simulation")
+    parser.add_argument('warmup_period', type=int, default=0, help="timestamp (in seconds) at which to start the simulation")
     # parse the command line arguments
     args = parser.parse_args()
     
@@ -218,10 +248,10 @@ def main():
 
     # TODO: Take the URL as a commandline argument
     # TODO: check the results to make sure we acutally get an OK!
-    # TODO: Take a commandline option for warmup period - e.g. let the simulation settle in respoonse to
-    # outside air temps etc before starting
+    # 
     global nextState
-    res = requests.put('{0}/initialize'.format(baseurl), data={'start_time':0, 'warmup_period':0} ).json()
+
+    res = requests.put('{0}/initialize'.format(baseurl), data={'start_time':args.start_time, 'warmup_period':args.warmup_period} ).json()
     nextState = res
 
     global boptest_measurements, boptest_inputs

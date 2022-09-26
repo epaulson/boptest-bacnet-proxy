@@ -1,0 +1,122 @@
+@prefix bldg: <urn:example#> .
+@prefix brick: <https://brickschema.org/schema/Brick#> .
+@prefix bacnet: <http://data.ashrae.org/bacnet/2020#> .
+@prefix unit: <http://qudt.org/vocab/unit/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix ref: <https://brickschema.org/schema/Brick/ref#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:example#> a owl:Ontology ;
+    owl:imports <https://brickschema.org/schema/1.2/Brick#> .
+
+bldg:boptest-proxy-device a bacnet:BACnetDevice ;
+    bacnet:device-instance 599 .
+
+bldg:mz_office_bldg a brick:Building .
+
+bldg:mz_office_floor_2 a brick:Floor ;
+  brick:isPartOf bldg:mz_office_bldg .
+
+bldg:mz_office_fl2_zone_sou a brick:HVAC_Zone ;
+  brick:area [ brick:value "207.58"^^xsd:decimal; brick:hasUnit unit:M2 ] ;
+  brick:isFedBy bldg:fl2_vav_zone_sou ;
+  brick:isPartOf bldg:mz_office_floor_2 .
+
+bldg:mz_office_fl2_zone_nor a brick:HVAC_Zone ;
+  brick:area [ brick:value "207.58"^^xsd:decimal; brick:hasUnit unit:M2 ] ;
+  brick:isPartOf bldg:mz_office_floor_2 .
+
+bldg:mz_office_fl2_zone_eas a brick:HVAC_Zone ;
+  brick:area [ brick:value "131.416"^^xsd:decimal; brick:hasUnit unit:M2 ] ;
+  brick:isPartOf bldg:mz_office_floor_2 .
+
+bldg:mz_office_fl2_zone_wes a brick:HVAC_Zone ;
+  brick:area [ brick:value "131.416"^^xsd:decimal; brick:hasUnit unit:M2 ] ;
+  brick:isPartOf bldg:mz_office_floor_2 .
+
+bldg:mz_office_fl2_zone_cor a brick:HVAC_Zone ;
+  brick:area [ brick:value "984.672"^^xsd:decimal; brick:hasUnit unit:M2 ] ;
+  brick:isPartOf bldg:mz_office_floor_2 .
+
+bldg:fl2_ahu a brick:AHU ;
+  brick:feeds bldg:fl2_vav_zone_sou ;
+  brick:hasLocation brick:mz_office_floor_2 .
+
+bldg:fl2_ahu_heating_coil a brick:Heating_Coil ;
+  brick:isPartOf bldg:flr2_ahu .
+
+bldg:fl2_vav_zone_sou a brick:Variable_Air_Volume_Box_With_Reheat ;
+  brick:feeds bldg:mz_office_fl2_zone_sou ;
+  brick:isFedBy bldg:fl2_ahu ;
+  brick:hasLocation bldg:mz_office_fl2_zone_sou .
+
+
+# # Inputs
+# {
+#  # bacnet 1
+#   "hvac_oveZonSupNor_TZonCooSet_u": {
+#     "Minimum": 285.15,
+#     "Description": "Zone air temperature cooling setpoint for zone nor",
+#     "Unit": "K",
+#     "Maximum": 313.15
+#   },
+#  # bacnet 2
+#   "hvac_oveZonActNor_yDam_u": {
+#     "Minimum": 0,
+#     "Description": "Damper position setpoint for zone nor",
+#     "Unit": "1",
+#     "Maximum": 1
+#   },
+#   "hvac_oveAhu_TSupSet_activate": {
+#     "Minimum": null,
+#     "Description": "Activation for Supply air temperature setpoint for AHU",
+#     "Unit": null,
+#     "Maximum": null
+#   },
+
+bldg:hvac_oveZonSupSou_TZonCooSet_u a brick:Zone_Air_Cooling_Temperature_Setpoint ;
+  brick:isPointOf bldg:flr2_vav_zone_sou ;
+  brick:hasUnit unit:K ;
+  ref:hasExternalReference [
+        bacnet:object-identifier "analog-value,3" ;
+        bacnet:object-type "analog-value" ;
+        bacnet:object-name "hvac_oveZonSupSou_TZonCooSet_u" ;
+        bacnet:objectOf bldg:boptest-proxy-device 
+  ] .
+
+bldg:hvac_oveZonSupSou_TZonHeaSet_u a brick:Zone_Air_Heating_Temperature_Setpoint ;
+    brick:hasLocation bldg:hvac_sou_zone ;
+    brick:isPointOf bldg:mz_office_fl2_zone_sou ;
+    ref:hasExternalReference [ bacnet:object-identifier "analog-value,63" ;
+            bacnet:object-name "hvac_oveZonSupSou_TZonHeaSet_u" ;
+            bacnet:object-type "analog-value" ;
+            bacnet:objectOf bldg:boptest-proxy-device ] .
+
+bldg:hvac_oveAhu_yPumHea_u a brick:Pump_Command ;
+  brick:isPointOf bldg:fl2_ahu_heating_coil ;
+  ref:hasExternalReference [
+        bacnet:object-identifier "analog-output,6" ;
+        bacnet:object-type "analog-output" ;
+        bacnet:object-name "hvac_oveAhu_yPumHea_u" ;
+        bacnet:objectOf bldg:boptest-proxy-device 
+  ] .
+
+  bldg:hvac_reaZonSou_TZon_y a brick:Zone_Air_Temperature_Sensor ;
+  brick:isPointOf bldg:mz_office_fl2_zone_sou ;
+  brick:hasUnit unit:K ;
+  ref:hasExternalReference [
+        bacnet:object-identifier "analog-input,134" ;
+        bacnet:object-type "analog-input" ;
+        bacnet:object-name "hvac_reaZonSou_TZon_y" ;
+        bacnet:objectOf bldg:boptest-proxy-device 
+  ] .
+
+  bldg:hvac_reaZonSou_TSup_y a brick:Supply_Air_Temperature_Sensor ;
+  brick:isPointOf bldg:mz_office_fl2_zone_sou ;
+  brick:hasUnit unit:K ;
+  ref:hasExternalReference [
+        bacnet:object-identifier "analog-input,135" ;
+        bacnet:object-type "analog-input" ;
+        bacnet:object-name "hvac_reaZonSou_TSup_y" ;
+        bacnet:objectOf bldg:boptest-proxy-device 
+  ] .

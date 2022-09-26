@@ -15,10 +15,10 @@ Of course, the point of BOPTEST is to be able to test different controllers and 
 The BOPTEST distribution includes several different preconfigured simulatable buildings, each one called a 'test case'. 
 
 But, just because you can run the simulation faster than wallclock time doesn't mean you have to, and that's what we've been experimenting with. 
-This repository has a simple server - the `BoptestBACnetProxy` - that drives a BOPTEST simulation at wallclock speeds. 
-Every 5 seconds of realworld time, the `BoptestBACnetProxy` advances the BOPTEST simulation forward by 5 seconds. 
-To interact with the simulation, the `BoptestBACnetProxy` reads the current state of the simulation out of BOPTEST and makes those values available as BACnet objects. 
-The `BoptestBACnetProxy` can also be written to using BACnet, and any of the "input" points that are overwritten in the proxy and passed in to the BOPTEST simulation.
+This repository has a simple server - the `BopTestProxy` - that drives a BOPTEST simulation at wallclock speeds. 
+Every 5 seconds of realworld time, the `BopTestProxy` advances the BOPTEST simulation forward by 5 seconds. 
+To interact with the simulation, the `BopTestProxy` reads the current state of the simulation out of BOPTEST and makes those values available as BACnet objects. 
+The `BopTestProxy` can also be written to using BACnet, and any of the "input" points that are overwritten in the proxy and passed in to the BOPTEST simulation.
 This way, users can interact with the building simulation through the BACnet client or controller of their choice and override setpoints and such, and see physically-correct results in the virtual sensor objects also through BACnet.
 
 The end result is a fully digital building that can be created and interacted with as though it was a real building, using standard protocols.
@@ -28,22 +28,85 @@ The end result is a fully digital building that can be created and interacted wi
 To run it, follow the install instructions
 from https://github.com/ibpsa/project1-boptest and run it with testcase1,
 ```
-TESTCASE=testcase1 docker compose up
+TESTCASE=multizone_office_simple_air docker compose up
 ```
 
 Then, in another terminal, edit the `BACpypes.ini` file to match the IP address details of your site, and run 
 ```
-python BopTestProxy.py testcase1.json
+python BopTestProxy.py simple.ttl
 ```
-(remember that ObjectIdentifer property in BACnet must be unique across your entire BACnet installation, so you may need to change the 599 to something else, consult your local BACnet administrator)
+(remember that ObjectIdentifer property in BACnet must be unique across your entire BACnet installation, so you may need to change the 599 to something else in BACpypes.ini, consult your local BACnet administrator)
 
 Finally, on another machine, use the BACnet client of your choice to observe the state of the simulation throough BACnet and optionally overwrite some control point values to influence the simulation.
+(If you're using BACpypes, remember you'll need a different BACpypes.ini file - use a new ObjectIdentifer here!))
+(This has to be a seperate machine - BACnet uses UDP so you can't run the client and the server on the same machine easily, at least not without doing some network configuring - it's easier just to use to machines or two VMs!)
 
-**IMPORTANT NOTE** Writing to the simulation is temporarily not working. 
-You can write to objects via BACnet and they will be passed into BOPTEST, but BOPTEST needs overwritten values to be paired with a corresponding `_activate` signal. 
-Earlier versions of this code directly exposed the _activate signals as BACnet objects but we are removing that and will just automatically pair the _activate signal with the appropriate BACnet object in BOPTEST, which is a more natural scenario to BACnet users. 
+```
+python samples/ReadAllProperties.py 10.0.2.7 analogValue 63
+```
+and
+```
+python samples/ReadWriteProperty.py 
+> write 10.0.2.7 analogValue:63 presentValue 310
+```
 
 Remember that BACnet uses UDP and port 47808 ('BAC0' in hex) so you may need to adjust your firewall rules on both machines.
+
+For a slightly more interesting version, run
+```
+python BopTestProxy.py simple.ttl 19740 3600
+```
+The first number is the virtual "Start time" for the simulation - in this case, that's 5:29am in the simulation.
+The second number is the "warmup time" for the simulation - BOPtest actually starts running the simulation at 4:29am and automatically advances the simulation to 5:29am.
+
+In the 'multizone_office_simple_air' test case, the internal supervisory control algorithm starts a building "unoccupied but preheat" period at 5:31am virtual time, assuming the simulation has been running at least 1 minute (which it will because we started it at 5:29am virtual time)
+
+You'll see an internal setpoint change - it's defined in simple.ttl as
+```ttl
+bldg:hvac_oveZonSupSou_TZonHeaSet_u a brick:Zone_Air_Heating_Temperature_Setpoint ;
+    brick:hasLocation bldg:hvac_sou_zone ;
+    brick:isPointOf bldg:mz_office_fl2_zone_sou ;
+    ref:hasExternalReference [ bacnet:object-identifier "analog-value,63" ;
+            bacnet:object-name "hvac_oveZonSupSou_TZonHeaSet_u" ;
+            bacnet:object-type "analog-value" ;
+            bacnet:objectOf bldg:boptest-proxy-device ] 
+```
+and if you run
+```
+python samples/ReadAllProperties.py 10.0.2.7 analogValue 63
+Mon 26 Sep 2022 02:40:39 PM CDT
+presentValue = 285.1499938964844
+priorityArray = <bacpypes.basetypes.PriorityArray object at 0x7f6969f07850>
+    length = 16
+    [1]
+        null = ()
+  <...>
+    [16]
+        null = ()
+relinquishDefault = 0.0
+
+(wait two minutes)
+date; python samples/ReadAllProperties.py 10.0.2.7 analogValue 63
+Mon 26 Sep 2022 02:43:07 PM CDT
+presentValue = 293.1499938964844
+priorityArray = <bacpypes.basetypes.PriorityArray object at 0x7f8b3cde7850>
+    length = 16
+    [1]
+        null = ()
+<...>
+    [16]
+        null = ()
+relinquishDefault = 0.0
+```
+You can also look at other variables - in the simple.ttl brick model, we have an entity
+`bldg:hvac_reaZonSou_TSup_y a brick:Supply_Air_Temperature_Sensor ;` which is defined as a BACnet analogInput with instance id 135:
+```
+python samples/ReadAllProperties.py 10.0.2.7 analogInput 135
+presentValue = 294.76763916015625
+units = degreesKelvin
+```
+
+If you overwrite the setpoint in AnalogValue 63 (see the command above) and wait a few minutes, you'll see the supply air temp sensor start to show higher temperatures.
 
 ## Configuration and Brick Models
 The Proxy looks in a [Brick model](https://brickschema.org/) for the test case.
