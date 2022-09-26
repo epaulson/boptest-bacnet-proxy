@@ -26,7 +26,7 @@ The end result is a fully digital building that can be created and interacted wi
 
 ## Getting Started
 To run it, follow the install instructions
-from https://github.com/ibpsa/project1-boptest and run it with testcase1,
+from https://github.com/ibpsa/project1-boptest and run it with the multizone office air testcase,
 ```
 TESTCASE=multizone_office_simple_air docker compose up
 ```
@@ -38,8 +38,9 @@ python BopTestProxy.py simple.ttl
 (remember that ObjectIdentifer property in BACnet must be unique across your entire BACnet installation, so you may need to change the 599 to something else in BACpypes.ini, consult your local BACnet administrator)
 
 Finally, on another machine, use the BACnet client of your choice to observe the state of the simulation throough BACnet and optionally overwrite some control point values to influence the simulation.
-(If you're using BACpypes, remember you'll need a different BACpypes.ini file - use a new ObjectIdentifer here!))
-(This has to be a seperate machine - BACnet uses UDP so you can't run the client and the server on the same machine easily, at least not without doing some network configuring - it's easier just to use to machines or two VMs!)
+If you're using BACpypes, remember you'll need a different BACpypes.ini file - use a new ObjectIdentifer here!
+
+(This has to or at least should be a seperate machine - BACnet uses UDP so you can't run the client and the server on the same machine easily, at least not without doing some network configuring - it's easier just to use two machines or two VMs!)
 
 ```
 python samples/ReadAllProperties.py 10.0.2.7 analogValue 63
@@ -56,7 +57,7 @@ For a slightly more interesting version, run
 ```
 python BopTestProxy.py simple.ttl 19740 3600
 ```
-The first number is the virtual "Start time" for the simulation - in this case, that's 5:29am in the simulation.
+The first number is the virtual "Start time" for the simulation - in this case, that's 5:29am on the first day in the simulation.
 The second number is the "warmup time" for the simulation - BOPtest actually starts running the simulation at 4:29am and automatically advances the simulation to 5:29am.
 
 In the 'multizone_office_simple_air' test case, the internal supervisory control algorithm starts a building "unoccupied but preheat" period at 5:31am virtual time, assuming the simulation has been running at least 1 minute (which it will because we started it at 5:29am virtual time)
