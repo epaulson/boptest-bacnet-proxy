@@ -117,8 +117,8 @@ def create_objects(app, configfile):
             units = unitMapping[str(rdfBacnetUnit)]
         
         initialValue = None
-        if name in nextState:
-            initialValue = nextState[name]
+        if name in nextState['payload']:
+            initialValue = nextState['payload'][name]
         else:
             initialValue = 0.0
         if klassName == 'analog-input' or klassName == 'analog-value':
@@ -135,7 +135,7 @@ def create_objects(app, configfile):
         app.add_object(obj)
         # keep track of the object by name
         objects[name] = obj
-        if name in boptest_inputs:
+        if name in boptest_inputs['payload']:
             activation_name = name[:-2] + "_activate"
             # TODO: Check to make sure there actually is an activation signal!
             activation_signal[name] = activation_name
@@ -190,7 +190,8 @@ def update_boptest_data():
     #print("Advancing with signals: " + str(signals))
     response = requests.post(
     #    "http://localhost:5000/advance", data={"oveAct_u": next_oveAct_u, "oveAct_activate": next_oveAct_activate}
-        "http://localhost:5000/advance", data=signals
+        '{0}/advance'.format(baseurl), data=signals
+
     )
     if response.status_code != 200:
         print("Error response: %r" % (response.status_code,))
@@ -210,7 +211,7 @@ def update_boptest_data():
     # because if say the call to /advance takes 3 seconds, we want to get called again in 2 seconds, not in 5 seconds. 
     global nextState
     if nextState:
-        for k, v in nextState.items():
+        for k, v in nextState['payload'].items():
             if _debug:
                 update_boptest_data._debug("    - k, v: %r, %r", k, v)
 
@@ -238,15 +239,16 @@ def main():
     parser.add_argument('brick_model', type=str, help='Brick model that defines the site, a ttl file')
     parser.add_argument('start_time', type=int, default=0, help="timestamp (in seconds) at which to start the simulation")
     parser.add_argument('warmup_period', type=int, default=0, help="timestamp (in seconds) at which to start the simulation")
+    parser.add_argument('--baseurl', dest='baseurl', type=str, default='http://localhost:5000', help="URL for BOPTest endpoint")
     # parse the command line arguments
     args = parser.parse_args()
-    
+    baseurl = args.baseurl
+ 
     if _debug:
         _log.debug("initialization")
     if _debug:
         _log.debug("    - args: %r", args)
 
-    # TODO: Take the URL as a commandline argument
     # TODO: check the results to make sure we acutally get an OK!
     # 
     global nextState
