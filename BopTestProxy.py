@@ -148,7 +148,7 @@ def update_boptest_data():
     """Read the current simulation data from the API and set the object values."""
     if _debug:
         update_boptest_data._debug("update_boptest_data")
-    global objects, inputs
+    global objects, inputs, baseurl
 
     # ask the web service
     # We get results direct from /advance now but you could ask the simulation for historic data
@@ -232,7 +232,7 @@ class ReadPropertyMultipleApplication(
 
 @bacpypes_debugging
 def main():
-    global vendor_id, g
+    global vendor_id, g, baseurl
 
     parser = ConfigArgumentParser(description=__doc__)
 
